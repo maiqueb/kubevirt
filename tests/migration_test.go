@@ -57,7 +57,7 @@ const (
 	secretDiskSerial  = "D23YZ9W6WA5DJ487"
 )
 
-var _ = Describe("[rfe_id:393][crit:high][vendor:cnv-qe@redhat.com][level:system] VM Live Migration", func() {
+var _ = Describe("[rfe_id:393][crit:high][vendor:cnv-qe@redhat.com][level:system] VM Live Migration. Requires MIGRATION", func() {
 	tests.FlagParse()
 
 	virtClient, err := kubecli.GetKubevirtClient()
