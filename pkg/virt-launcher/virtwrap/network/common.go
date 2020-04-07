@@ -55,11 +55,12 @@ type VIF struct {
 	Routes       *[]netlink.Route
 	Mtu          uint16
 	IPAMDisabled bool
+	TapDevice    string
 }
 
 func (vif VIF) String() string {
 	return fmt.Sprintf(
-		"VIF: { Name: %s, IP: %s, Mask: %s, MAC: %s, Gateway: %s, MTU: %d, IPAMDisabled: %t}",
+		"VIF: { Name: %s, IP: %s, Mask: %s, MAC: %s, Gateway: %s, MTU: %d, IPAMDisabled: %t, TapDevice: %s}",
 		vif.Name,
 		vif.IP.IP,
 		vif.IP.Mask,
@@ -67,6 +68,7 @@ func (vif VIF) String() string {
 		vif.Gateway,
 		vif.Mtu,
 		vif.IPAMDisabled,
+		vif.TapDevice,
 	)
 }
 

@@ -27,11 +27,12 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
 	"github.com/coreos/go-iptables/iptables"
-
+	"github.com/google/uuid"
 	"github.com/vishvananda/netlink"
 
 	v1 "kubevirt.io/client-go/api/v1"
@@ -206,8 +207,18 @@ func getPhase2Binding(vmi *v1.VirtualMachineInstance, iface *v1.Interface, netwo
 		return nil
 	}
 
+	var tapName = ""
+	// when running on virt-handler, we got to create the tap device
+	if domain == nil {
+		tapName, err := createTapDevice()
+		if err != nil {
+			return nil, err
+		}
+		log.Log.Infof("Created tap device: %s", tapName)
+	}
+
 	if iface.Bridge != nil {
-		vif := &VIF{Name: podInterfaceName}
+		vif := &VIF{Name: podInterfaceName, TapDevice: tapName}
 		populateMacAddress(vif, iface)
 		return &BridgePodInterface{iface: iface,
 			virtIface:           &api.Interface{},
@@ -218,7 +229,7 @@ func getPhase2Binding(vmi *v1.VirtualMachineInstance, iface *v1.Interface, netwo
 			bridgeInterfaceName: fmt.Sprintf("k6t-%s", podInterfaceName)}, nil
 	}
 	if iface.Masquerade != nil {
-		vif := &VIF{Name: podInterfaceName}
+		vif := &VIF{Name: podInterfaceName, TapDevice: tapName}
 		populateMacAddress(vif, iface)
 		return &MasqueradePodInterface{iface: iface,
 			virtIface:           &api.Interface{},
@@ -985,4 +996,23 @@ func (b *SlirpPodInterface) setCachedVIF(pid, name string) error {
 
 func (s *SlirpPodInterface) setCachedInterface(pid, name string) error {
 	return nil
+}
+
+func createTapDevice() (string, error) {
+	tapName := generateTapDeviceName()
+	args := []string{"tuntap", "add", "mode", "tap", "user", "qemu", "group", "qemu", "name", tapName}
+	cmd := exec.Command("ip", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Log.Reason(err).Criticalf("Failed to create tap device %s. Reason: %s", tapName, out)
+		return "", err
+	}
+	log.Log.Infof("Created tap device: %s", tapName)
+	return tapName, nil
+}
+
+func generateTapDeviceName() string {
+	generatedUUID := uuid.New().String()
+	generatedUUID = strings.ReplaceAll(generatedUUID, "-", "")
+	return fmt.Sprintf("tap%s", generatedUUID[0:12])
 }
