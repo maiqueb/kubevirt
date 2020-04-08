@@ -1208,7 +1208,10 @@ func Convert_v1_VirtualMachine_To_api_Domain(vmi *v1.VirtualMachineInstance, dom
 			if iface.Bridge != nil || iface.Masquerade != nil {
 				// TODO:(ihar) consider abstracting interface type conversion /
 				// detection into drivers
-				domainIface.Type = "bridge"
+
+				// use "ethernet" interface type, since we're using pre-configured tap devices
+				// https://libvirt.org/formatdomain.html#elementsNICSEthernet
+				domainIface.Type = "ethernet"
 				if value, ok := cniNetworks[iface.Name]; ok {
 					prefix := ""
 					// no error check, we assume that CNI type was set correctly

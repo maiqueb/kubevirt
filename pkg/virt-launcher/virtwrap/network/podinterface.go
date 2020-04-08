@@ -64,6 +64,7 @@ type BindMechanism interface {
 	// binding and can be used in phase2 only.
 	decorateConfig() error
 	startDHCP(vmi *v1.VirtualMachineInstance) error
+	configureTapDevice() error
 }
 
 type PodInterface struct{}
@@ -109,6 +110,11 @@ func (l *PodInterface) PlugPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Inte
 
 		if err := driver.preparePodNetworkInterfaces(); err != nil {
 			log.Log.Reason(err).Critical("failed to prepare pod networking")
+		}
+
+		if err = driver.configureTapDevice(); err != nil {
+			log.Log.Reason(err).Criticalf("failed to configure the tap device")
+			return err
 		}
 
 		err = driver.setCachedInterface(pidStr, iface.Name)
@@ -376,8 +382,8 @@ func (b *BridgePodInterface) decorateConfig() error {
 	ifaces := b.domain.Spec.Devices.Interfaces
 	for i, iface := range ifaces {
 		if iface.Alias.Name == b.iface.Name {
-			ifaces[i].MTU = b.virtIface.MTU
-			ifaces[i].MAC = &api.MAC{MAC: b.vif.MAC.String()}
+			ifaces[i].Target.Managed = "no"
+			ifaces[i].Target.Device = b.vif.TapDevice
 			break
 		}
 	}
@@ -485,6 +491,10 @@ func (b *BridgePodInterface) createBridge() error {
 	}
 
 	return nil
+}
+
+func (b *BridgePodInterface) configureTapDevice() error {
+	return configureTapDevice(b.vif.TapDevice, b.bridgeInterfaceName)
 }
 
 type MasqueradePodInterface struct {
@@ -657,6 +667,10 @@ func (p *MasqueradePodInterface) decorateConfig() error {
 		if iface.Alias.Name == p.iface.Name {
 			ifaces[i].MTU = p.virtIface.MTU
 			ifaces[i].MAC = &api.MAC{MAC: p.vif.MAC.String()}
+			ifaces[i].Target = &api.InterfaceTarget{
+				Device:  p.vif.TapDevice,
+				Managed: "no",
+			}
 			break
 		}
 	}
@@ -935,6 +949,10 @@ func (p *MasqueradePodInterface) createNatRulesUsingNftables(proto iptables.Prot
 	return nil
 }
 
+func (m *MasqueradePodInterface) configureTapDevice() error {
+	return configureTapDevice(m.vif.TapDevice, m.bridgeInterfaceName)
+}
+
 type SlirpPodInterface struct {
 	vmi       *v1.VirtualMachineInstance
 	iface     *v1.Interface
@@ -990,11 +1008,15 @@ func (s *SlirpPodInterface) loadCachedVIF(pid, name string) (bool, error) {
 	return true, nil
 }
 
-func (b *SlirpPodInterface) setCachedVIF(pid, name string) error {
+func (s *SlirpPodInterface) setCachedVIF(pid, name string) error {
 	return nil
 }
 
 func (s *SlirpPodInterface) setCachedInterface(pid, name string) error {
+	return nil
+}
+
+func (s *SlirpPodInterface) configureTapDevice() error {
 	return nil
 }
 
@@ -1015,4 +1037,26 @@ func generateTapDeviceName() string {
 	generatedUUID := uuid.New().String()
 	generatedUUID = strings.ReplaceAll(generatedUUID, "-", "")
 	return fmt.Sprintf("tap%s", generatedUUID[0:12])
+}
+
+func configureTapDevice(tapName string, bridgeName string) error {
+	tap, err := netlink.LinkByName(tapName)
+	if err != nil {
+		return err
+	}
+	log.Log.Infof("Found tap device: %s", tapName)
+	bridge := &netlink.Bridge{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: bridgeName,
+		},
+	}
+	if err := netlink.LinkSetMaster(tap, bridge); err != nil {
+		log.Log.Reason(err).Criticalf("Failed to enslave tap device [%s] to bridge [%s]", tapName, bridgeName)
+		return err
+	}
+	err = netlink.LinkSetUp(tap)
+	if err != nil {
+		return err
+	}
+	return nil
 }
