@@ -66,7 +66,14 @@ to each [binding mechanism](#binding-mechanisms), as each of those can involve
 different libvirt configurations.
 
 ## Binding Mechanisms
-TODO
+A binding mechanism can be seen as the translation service between KubeVirt's
+API and Libvirt's domain xml. Each interface type has a different binding
+mechanism, since it will lead to a different libvirt domain xml specification.
+
+As of now, the existent binding mechanisms are:
+- [bridge](#bridge-binding-mechanism)
+- [masquerade](#masquerade-binding-mechanism)
+- [slirp](#slirp-binding-mechanism)
 
 ### Bridge binding mechanism
 
