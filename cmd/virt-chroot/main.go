@@ -182,12 +182,17 @@ func main() {
 	createTapCmd.Flags().Uint32("queue-number", 0, "the number of queues to use on multi-queued devices")
 	createTapCmd.Flags().Uint32("mtu", 1500, "the link MTU of the tap device")
 
+	createNDPConnCmd := NewCreateNDPConnectionCommand()
+	createNDPConnCmd.Flags().String("listen-on-iface", "", "the interface to listen to RouterSolicitation messages")
+	createNDPConnCmd.Flags().String("launcher-pid", "", "the pid of the virt-launcher for which we're setting up the RA daemon")
+
 	rootCmd.AddCommand(
 		execCmd,
 		mntCmd,
 		umntCmd,
 		selinuxCmd,
 		createTapCmd,
+		createNDPConnCmd,
 	)
 
 	if err := rootCmd.Execute(); err != nil {

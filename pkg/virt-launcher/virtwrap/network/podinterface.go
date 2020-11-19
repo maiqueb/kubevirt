@@ -76,6 +76,10 @@ func getVifFilePath(pid, name string) string {
 	return fmt.Sprintf(vifCacheFile, pid, name)
 }
 
+func GetNDPConnectionUnixSocketPath(pid string, ifaceName string) string {
+	return fmt.Sprintf(raSenderUnixSocketTemplate, pid, ifaceName)
+}
+
 func writeVifFile(buf []byte, pid, name string) error {
 	err := ioutil.WriteFile(getVifFilePath(pid, name), buf, 0644)
 	if err != nil {
@@ -707,7 +711,24 @@ func configureVifV6Addresses(p *MasqueradePodInterface, err error) error {
 }
 
 func (p *MasqueradePodInterface) startDynamicIPServers(vmi *v1.VirtualMachineInstance) error {
+	if err := p.startRADaemon(); err != nil {
+		log.Log.Criticalf("could not start the RA daemon: %v", err)
+		return err
+	}
 	return Handler.StartDHCP(p.vif, p.vif.Gateway, p.bridgeInterfaceName, p.iface.DHCPOptions)
+}
+
+func (p *MasqueradePodInterface) startRADaemon() error {
+	targetPID := "self"
+	if err := Handler.CreateRADaemon(
+		GetNDPConnectionUnixSocketPath(targetPID, p.bridgeInterfaceName),
+		p.bridgeInterfaceName,
+		api.DefaultVMIpv6CIDR,
+		5); err != nil {
+		return fmt.Errorf("failed to start the RA daemon in virt-launcher: %v", err)
+	}
+
+	return nil
 }
 
 func (p *MasqueradePodInterface) preparePodNetworkInterfaces(queueNumber uint32, launcherPID int) error {
@@ -780,6 +801,10 @@ func (p *MasqueradePodInterface) preparePodNetworkInterfaces(queueNumber uint32,
 			}
 		} else {
 			return fmt.Errorf("Couldn't configure ipv6 nat rules")
+		}
+
+		if err := Handler.CreateNDPConnection(p.bridgeInterfaceName, launcherPID); err != nil {
+			return fmt.Errorf("could not start the RA daemon: %v", err)
 		}
 	}
 
