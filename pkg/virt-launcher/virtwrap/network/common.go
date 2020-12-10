@@ -127,6 +127,7 @@ type NetworkHandler interface {
 		socketPath string,
 		advitesementIfaceName string,
 		ipv6CIDR string,
+		routerSourceAddr net.HardwareAddr,
 		currentRetry int) error
 }
 
@@ -544,14 +545,14 @@ func (h *NetworkUtilsHandler) DisableTXOffloadChecksum(ifaceName string) error {
 	return nil
 }
 
-func (h *NetworkUtilsHandler) CreateRADaemon(socketPath string, advitesementIfaceName string, ipv6CIDR string, currentRetry int) error {
+func (h *NetworkUtilsHandler) CreateRADaemon(socketPath string, advitesementIfaceName string, ipv6CIDR string, routerSourceAddr net.HardwareAddr, currentRetry int) error {
 	c, err := net.Dial("unix", socketPath)
 	if err != nil {
 		log.Log.V(4).Warningf("could not connect to the unix domain socket: %v", err)
 
 		if currentRetry > 0 {
 			time.Sleep(time.Second)
-			return h.CreateRADaemon(socketPath, advitesementIfaceName, ipv6CIDR, currentRetry-1)
+			return h.CreateRADaemon(socketPath, advitesementIfaceName, ipv6CIDR, routerSourceAddr, currentRetry-1)
 		}
 	}
 	defer c.Close()
@@ -568,7 +569,7 @@ func (h *NetworkUtilsHandler) CreateRADaemon(socketPath string, advitesementIfac
 		_ = openedFD.Close()
 	}()
 
-	raDaemon, err := ndp.RouterAdvertisementDaemonFromFD(openedFD, advitesementIfaceName, ipv6CIDR)
+	raDaemon, err := ndp.RouterAdvertisementDaemonFromFD(openedFD, advitesementIfaceName, ipv6CIDR, routerSourceAddr)
 	if err != nil {
 		return fmt.Errorf("failed to re-create the RouterAdvertisement daemon on virt-launcher: %v", err)
 	}
