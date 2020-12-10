@@ -383,15 +383,21 @@ func (h *NetworkUtilsHandler) StartDHCP(nic *VIF, serverAddr net.IP, bridgeInter
 func (h *NetworkUtilsHandler) CreateNDPConnection(bridgeInterfaceName string, launcherPID int) error {
 	log.Log.Infof("Starting RA daemon on network Nic: %s", bridgeInterfaceName)
 
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
 	runRADaemonArgs := []string{
 		"create-ndp-connection",
 		"--listen-on-iface", bridgeInterfaceName,
 		"--launcher-pid", fmt.Sprintf("%d", launcherPID),
 	}
 	startRADaemonCmd := exec.Command("virt-chroot", runRADaemonArgs...)
+	if isSELinuxEnabled() {
+		defer func() {
+			_ = resetVirtHandlerSELinuxContext()
+		}()
+
+		if err := setVirtLauncherSELinuxContext(launcherPID); err != nil {
+			return err
+		}
+	}
 	err := startRADaemonCmd.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the RA daemon: %v", err)
