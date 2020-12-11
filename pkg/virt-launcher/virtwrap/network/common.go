@@ -580,6 +580,10 @@ func (h *NetworkUtilsHandler) CreateRADaemon(socketPath string, advitesementIfac
 		}
 	}()
 
+	go func() {
+		raDaemon.PeriodicallySendRAs()
+	}()
+
 	return nil
 }
 
