@@ -135,6 +135,11 @@ type tapDeviceMaker struct {
 	queueNumber uint32
 }
 
+type ndpConnectionMaker struct {
+	SELinuxContextExecution
+	ifaceName string
+}
+
 var Handler NetworkHandler
 
 func (h *NetworkUtilsHandler) LinkByName(name string) (netlink.Link, error) {
@@ -377,29 +382,34 @@ func (h *NetworkUtilsHandler) StartDHCP(nic *VIF, serverAddr net.IP, bridgeInter
 }
 
 func (h *NetworkUtilsHandler) CreateNDPConnection(bridgeInterfaceName string, launcherPID int) error {
-	log.Log.Infof("Starting RA daemon on network Nic: %s", bridgeInterfaceName)
+	ndpConnectionMaker, err := buildNDPConnectionMaker(bridgeInterfaceName, launcherPID)
+	if err != nil {
+		return fmt.Errorf("error creating an NDP connection on %s: %v", bridgeInterfaceName, err)
+	}
+	if err := ndpConnectionMaker.Launch(); err != nil {
+		return fmt.Errorf("error creating an NDP connection on bridge %s; %v", bridgeInterfaceName, err)
+	}
+	return nil
+}
+
+func buildNDPConnectionMaker(ifaceName string, launcherPID int) (*ndpConnectionMaker, error) {
+	log.Log.Infof("Starting RA daemon on network Nic: %s", ifaceName)
 
 	runRADaemonArgs := []string{
 		"create-ndp-connection",
-		"--listen-on-iface", bridgeInterfaceName,
+		"--listen-on-iface", ifaceName,
 		"--launcher-pid", fmt.Sprintf("%d", launcherPID),
 	}
+
+	// #nosec No risk for attacket injection. startRADaemonCmd includes predefined strings
 	startRADaemonCmd := exec.Command("virt-chroot", runRADaemonArgs...)
-	if isSELinuxEnabled() {
-		defer func() {
-			_ = resetVirtHandlerSELinuxContext()
-		}()
-
-		if err := setVirtLauncherSELinuxContext(launcherPID); err != nil {
-			return err
-		}
+	ndpConnectionMaker := &ndpConnectionMaker{
+		ifaceName: ifaceName,
 	}
-	err := startRADaemonCmd.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the RA daemon: %v", err)
-	}
+	ndpConnectionMaker.cmdToExecute = startRADaemonCmd
+	ndpConnectionMaker.launcherPID = launcherPID
 
-	return nil
+	return ndpConnectionMaker, nil
 }
 
 // Generate a random mac for interface

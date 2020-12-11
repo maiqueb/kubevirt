@@ -52,6 +52,23 @@ func (ce *SELinuxContextExecution) Execute() error {
 	return nil
 }
 
+func (ce *SELinuxContextExecution) Launch() error {
+	if isSELinuxEnabled() {
+		defer func() {
+			_ = resetVirtHandlerSELinuxContext()
+		}()
+
+		if err := setVirtLauncherSELinuxContext(ce.launcherPID); err != nil {
+			return err
+		}
+	}
+	preventFDLeakOntoChild()
+	if err := ce.cmdToExecute.Start(); err != nil {
+		return fmt.Errorf("failed to execute command in launcher namespace %d: %v", ce.launcherPID, err)
+	}
+	return nil
+}
+
 func isSELinuxEnabled() bool {
 	_, selinuxEnabled, err := kvselinux.NewSELinux()
 	return err == nil && selinuxEnabled
