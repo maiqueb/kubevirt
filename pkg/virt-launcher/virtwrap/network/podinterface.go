@@ -373,6 +373,8 @@ type BridgeBindMechanism struct {
 	podInterfaceName    string
 	bridgeInterfaceName string
 	arpIgnore           bool
+	launcherPID         int
+	queueNumber         uint32
 }
 
 func (b *BridgeBindMechanism) discoverPodNetworkInterface() error {
@@ -691,6 +693,8 @@ type MasqueradeBindMechanism struct {
 	vmIpv6NetworkCIDR   string
 	gatewayAddr         *netlink.Addr
 	gatewayIpv6Addr     *netlink.Addr
+	launcherPID         int
+	queueNumber         uint32
 }
 
 func (b *MasqueradeBindMechanism) discoverPodNetworkInterface() error {
@@ -1154,10 +1158,11 @@ func (b *MasqueradeBindMechanism) createNatRulesUsingNftables(proto iptables.Pro
 }
 
 type SlirpBindMechanism struct {
-	vmi       *v1.VirtualMachineInstance
-	iface     *v1.Interface
-	virtIface *api.Interface
-	domain    *api.Domain
+	vmi         *v1.VirtualMachineInstance
+	iface       *v1.Interface
+	virtIface   *api.Interface
+	domain      *api.Domain
+	launcherPID int
 }
 
 func (s *SlirpBindMechanism) discoverPodNetworkInterface() error {
@@ -1224,6 +1229,7 @@ type MacvtapBindMechanism struct {
 	podInterfaceName string
 	podNicLink       netlink.Link
 	mac              *net.HardwareAddr
+	launcherPID      int
 }
 
 func (b *MacvtapBindMechanism) discoverPodNetworkInterface() error {
