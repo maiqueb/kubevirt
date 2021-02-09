@@ -71,15 +71,14 @@ func (_mr *_MockBindMechanismRecorder) setCachedInterface(arg0 interface{}) *gom
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "setCachedInterface", arg0)
 }
 
-func (_m *MockBindMechanism) loadCachedVIF(pid string, name string) (bool, error) {
-	ret := _m.ctrl.Call(_m, "loadCachedVIF", pid, name)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+func (_m *MockBindMechanism) loadCachedVIF(pid string) error {
+	ret := _m.ctrl.Call(_m, "loadCachedVIF", pid)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-func (_mr *_MockBindMechanismRecorder) loadCachedVIF(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "loadCachedVIF", arg0, arg1)
+func (_mr *_MockBindMechanismRecorder) loadCachedVIF(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "loadCachedVIF", arg0)
 }
 
 func (_m *MockBindMechanism) setCachedVIF(pid string, name string) error {
