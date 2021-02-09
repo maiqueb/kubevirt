@@ -287,6 +287,17 @@ func (l *podNICImpl) PlugPhase2(vmi *v1.VirtualMachineInstance, iface *v1.Interf
 	return nil
 }
 
+func retrieveMacAddress(iface *v1.Interface) (*net.HardwareAddr, error) {
+	if iface.MacAddress != "" {
+		macAddress, err := net.ParseMAC(iface.MacAddress)
+		if err != nil {
+			return nil, err
+		}
+		return &macAddress, nil
+	}
+	return nil, nil
+}
+
 // The only difference between bindings for two phases is that the first phase
 // should not require access to domain definition, hence we pass nil instead of
 // it. This means that any functions called under phase1 code path should not
@@ -296,17 +307,6 @@ func getPhase1Binding(vmi *v1.VirtualMachineInstance, iface *v1.Interface, netwo
 }
 
 func getPhase2Binding(vmi *v1.VirtualMachineInstance, iface *v1.Interface, network *v1.Network, domain *api.Domain, podInterfaceName string) (BindMechanism, error) {
-	retrieveMacAddress := func(iface *v1.Interface) (*net.HardwareAddr, error) {
-		if iface.MacAddress != "" {
-			macAddress, err := net.ParseMAC(iface.MacAddress)
-			if err != nil {
-				return nil, err
-			}
-			return &macAddress, nil
-		}
-		return nil, nil
-	}
-
 	if iface.Bridge != nil {
 		mac, err := retrieveMacAddress(iface)
 		if err != nil {
