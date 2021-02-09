@@ -308,59 +308,71 @@ func getPhase1Binding(vmi *v1.VirtualMachineInstance, iface *v1.Interface, netwo
 
 func getPhase2Binding(vmi *v1.VirtualMachineInstance, iface *v1.Interface, network *v1.Network, domain *api.Domain, podInterfaceName string) (BindMechanism, error) {
 	if iface.Bridge != nil {
-		mac, err := retrieveMacAddress(iface)
-		if err != nil {
-			return nil, err
-		}
-		vif := &VIF{Name: podInterfaceName}
-		if mac != nil {
-			vif.MAC = *mac
-		}
-		return &BridgeBindMechanism{iface: iface,
-			virtIface:           &api.Interface{},
-			vmi:                 vmi,
-			vif:                 vif,
-			domain:              domain,
-			podInterfaceName:    podInterfaceName,
-			bridgeInterfaceName: fmt.Sprintf("k6t-%s", podInterfaceName)}, nil
+		return newBridgeBindingMech(vmi, iface, podInterfaceName, domain)
 	}
 	if iface.Masquerade != nil {
-		mac, err := retrieveMacAddress(iface)
-		if err != nil {
-			return nil, err
-		}
-		vif := &VIF{Name: podInterfaceName}
-		if mac != nil {
-			vif.MAC = *mac
-		}
-		return &MasqueradeBindMechanism{iface: iface,
-			virtIface:           &api.Interface{},
-			vmi:                 vmi,
-			vif:                 vif,
-			domain:              domain,
-			podInterfaceName:    podInterfaceName,
-			vmNetworkCIDR:       network.Pod.VMNetworkCIDR,
-			vmIpv6NetworkCIDR:   "", // TODO add ipv6 cidr to PodNetwork schema
-			bridgeInterfaceName: fmt.Sprintf("k6t-%s", podInterfaceName)}, nil
+		return newMasqueradeBindingMech(vmi, iface, network, domain, podInterfaceName)
 	}
 	if iface.Slirp != nil {
 		return &SlirpBindMechanism{vmi: vmi, iface: iface, domain: domain}, nil
 	}
 	if iface.Macvtap != nil {
-		mac, err := retrieveMacAddress(iface)
-		if err != nil {
-			return nil, err
-		}
-
-		return &MacvtapBindMechanism{
-			vmi:              vmi,
-			iface:            iface,
-			domain:           domain,
-			podInterfaceName: podInterfaceName,
-			mac:              mac,
-		}, nil
+		return newMacvtapBindingMech(vmi, iface, domain, podInterfaceName)
 	}
 	return nil, fmt.Errorf("Not implemented")
+}
+
+func newMacvtapBindingMech(vmi *v1.VirtualMachineInstance, iface *v1.Interface, domain *api.Domain, podInterfaceName string) (*MacvtapBindMechanism, error) {
+	mac, err := retrieveMacAddress(iface)
+	if err != nil {
+		return nil, err
+	}
+
+	return &MacvtapBindMechanism{
+		vmi:              vmi,
+		iface:            iface,
+		domain:           domain,
+		podInterfaceName: podInterfaceName,
+		mac:              mac,
+	}, nil
+}
+
+func newMasqueradeBindingMech(vmi *v1.VirtualMachineInstance, iface *v1.Interface, network *v1.Network, domain *api.Domain, podInterfaceName string) (*MasqueradeBindMechanism, error) {
+	mac, err := retrieveMacAddress(iface)
+	if err != nil {
+		return nil, err
+	}
+	vif := &VIF{Name: podInterfaceName}
+	if mac != nil {
+		vif.MAC = *mac
+	}
+	return &MasqueradeBindMechanism{iface: iface,
+		virtIface:           &api.Interface{},
+		vmi:                 vmi,
+		vif:                 vif,
+		domain:              domain,
+		podInterfaceName:    podInterfaceName,
+		vmNetworkCIDR:       network.Pod.VMNetworkCIDR,
+		vmIpv6NetworkCIDR:   "", // TODO add ipv6 cidr to PodNetwork schema
+		bridgeInterfaceName: fmt.Sprintf("k6t-%s", podInterfaceName)}, nil
+}
+
+func newBridgeBindingMech(vmi *v1.VirtualMachineInstance, iface *v1.Interface, podInterfaceName string, domain *api.Domain) (*BridgeBindMechanism, error) {
+	mac, err := retrieveMacAddress(iface)
+	if err != nil {
+		return nil, err
+	}
+	vif := &VIF{Name: podInterfaceName}
+	if mac != nil {
+		vif.MAC = *mac
+	}
+	return &BridgeBindMechanism{iface: iface,
+		virtIface:           &api.Interface{},
+		vmi:                 vmi,
+		vif:                 vif,
+		domain:              domain,
+		podInterfaceName:    podInterfaceName,
+		bridgeInterfaceName: fmt.Sprintf("k6t-%s", podInterfaceName)}, nil
 }
 
 type BridgeBindMechanism struct {
