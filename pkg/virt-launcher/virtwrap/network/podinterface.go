@@ -50,7 +50,7 @@ type BindMechanism interface {
 	discoverPodNetworkInterface() error
 	preparePodNetworkInterfaces() error
 
-	loadCachedInterface(pid, name string) (bool, error)
+	loadCachedInterface(pid string) (bool, error)
 	setCachedInterface(pid, name string) error
 
 	// virt-handler that executes phase1 of network configuration needs to
@@ -177,7 +177,7 @@ func (l *podNICImpl) PlugPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Interf
 	}
 
 	pidStr := fmt.Sprintf("%d", pid)
-	isExist, err := bindMechanism.loadCachedInterface(pidStr, iface.Name)
+	isExist, err := bindMechanism.loadCachedInterface(pidStr)
 	if err != nil {
 		return err
 	}
@@ -252,7 +252,7 @@ func (l *podNICImpl) PlugPhase2(vmi *v1.VirtualMachineInstance, iface *v1.Interf
 
 	pid := "self"
 
-	isExist, err := bindMechanism.loadCachedInterface(pid, iface.Name)
+	isExist, err := bindMechanism.loadCachedInterface(pid)
 	if err != nil {
 		log.Log.Reason(err).Critical("failed to load cached interface configuration")
 	}
@@ -582,10 +582,10 @@ func (b *BridgeBindMechanism) decorateConfig() error {
 	return nil
 }
 
-func (b *BridgeBindMechanism) loadCachedInterface(pid, name string) (bool, error) {
+func (b *BridgeBindMechanism) loadCachedInterface(pid string) (bool, error) {
 	var ifaceConfig api.Interface
 
-	err := readFromVirtLauncherCachedFile(&ifaceConfig, pid, name)
+	err := readFromVirtLauncherCachedFile(&ifaceConfig, pid, b.iface.Name)
 	if os.IsNotExist(err) {
 		return false, nil
 	}
@@ -917,10 +917,10 @@ func (b *MasqueradeBindMechanism) decorateConfig() error {
 	return nil
 }
 
-func (b *MasqueradeBindMechanism) loadCachedInterface(pid, name string) (bool, error) {
+func (b *MasqueradeBindMechanism) loadCachedInterface(pid string) (bool, error) {
 	var ifaceConfig api.Interface
 
-	err := readFromVirtLauncherCachedFile(&ifaceConfig, pid, name)
+	err := readFromVirtLauncherCachedFile(&ifaceConfig, pid, b.iface.Name)
 	if os.IsNotExist(err) {
 		return false, nil
 	}
@@ -1259,7 +1259,7 @@ func (s *SlirpBindMechanism) decorateConfig() error {
 	return nil
 }
 
-func (s *SlirpBindMechanism) loadCachedInterface(pid, name string) (bool, error) {
+func (s *SlirpBindMechanism) loadCachedInterface(pid string) (bool, error) {
 	return true, nil
 }
 
@@ -1330,10 +1330,10 @@ func (b *MacvtapBindMechanism) decorateConfig() error {
 	return nil
 }
 
-func (b *MacvtapBindMechanism) loadCachedInterface(pid, name string) (bool, error) {
+func (b *MacvtapBindMechanism) loadCachedInterface(pid string) (bool, error) {
 	var ifaceConfig api.Interface
 
-	err := readFromVirtLauncherCachedFile(&ifaceConfig, pid, name)
+	err := readFromVirtLauncherCachedFile(&ifaceConfig, pid, b.iface.Name)
 	if os.IsNotExist(err) {
 		return false, nil
 	}
