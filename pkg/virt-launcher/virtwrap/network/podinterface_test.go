@@ -737,7 +737,7 @@ var _ = Describe("Pod Network", func() {
 			Expect(ok).To(BeTrue())
 
 			pidStr := fmt.Sprintf("%d", pid)
-			Expect(bridge.setCachedVIF(pidStr, bridge.iface.Name)).ToNot(HaveOccurred())
+			Expect(bridge.setCachedVIF(pidStr)).ToNot(HaveOccurred())
 			Expect(bridge.loadCachedVIF(pidStr)).ToNot(HaveOccurred())
 		})
 	})
@@ -755,7 +755,7 @@ var _ = Describe("Pod Network", func() {
 			Expect(slirp.loadCachedVIF(fmt.Sprintf("%d", pid))).NotTo(HaveOccurred())
 
 			// ...or after it
-			err = slirp.setCachedVIF(fmt.Sprintf("%d", pid), "fakename")
+			err = slirp.setCachedVIF(fmt.Sprintf("%d", pid))
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(slirp.loadCachedVIF(fmt.Sprintf("%d", pid))).NotTo(HaveOccurred())
@@ -782,7 +782,7 @@ var _ = Describe("Pod Network", func() {
 			Expect(ok).To(BeTrue())
 
 			pidStr := fmt.Sprintf("%d", pid)
-			Expect(masq.setCachedVIF(pidStr, masq.iface.Name)).ToNot(HaveOccurred())
+			Expect(masq.setCachedVIF(pidStr)).ToNot(HaveOccurred())
 			Expect(masq.loadCachedVIF(pidStr)).ToNot(HaveOccurred())
 		})
 	})
