@@ -171,7 +171,7 @@ func (l *podNICImpl) PlugPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Interf
 		return nil
 	}
 
-	bindMechanism, err := getPhase1Binding(vmi, iface, network, podInterfaceName)
+	bindMechanism, err := getPhase1Binding(vmi, iface, network, podInterfaceName, pid)
 	if err != nil {
 		return err
 	}
@@ -298,31 +298,48 @@ func retrieveMacAddress(iface *v1.Interface) (*net.HardwareAddr, error) {
 	return nil, nil
 }
 
-// The only difference between bindings for two phases is that the first phase
-// should not require access to domain definition, hence we pass nil instead of
-// it. This means that any functions called under phase1 code path should not
-// use the domain set on the binding.
-func getPhase1Binding(vmi *v1.VirtualMachineInstance, iface *v1.Interface, network *v1.Network, podInterfaceName string) (BindMechanism, error) {
-	return getPhase2Binding(vmi, iface, network, nil, podInterfaceName)
+func getPhase1Binding(vmi *v1.VirtualMachineInstance, iface *v1.Interface, network *v1.Network, podInterfaceName string, launcherPID int) (BindMechanism, error) {
+	if iface.Bridge != nil {
+		return newBridgeBindingMechPhase1(vmi, iface, podInterfaceName, launcherPID)
+	}
+	if iface.Masquerade != nil {
+		return newMasqueradeBindingMechPhase1(vmi, iface, network, podInterfaceName, launcherPID)
+	}
+	if iface.Slirp != nil {
+		return &SlirpBindMechanism{vmi: vmi, iface: iface, launcherPID: launcherPID}, nil
+	}
+	if iface.Macvtap != nil {
+		return newMacvtapBindingMechPhase1(vmi, iface, podInterfaceName, launcherPID)
+	}
+	return nil, fmt.Errorf("Not implemented")
 }
 
 func getPhase2Binding(vmi *v1.VirtualMachineInstance, iface *v1.Interface, network *v1.Network, domain *api.Domain, podInterfaceName string) (BindMechanism, error) {
 	if iface.Bridge != nil {
-		return newBridgeBindingMech(vmi, iface, podInterfaceName, domain)
+		return newBridgeBindingMechPhase2(vmi, iface, podInterfaceName, domain)
 	}
 	if iface.Masquerade != nil {
-		return newMasqueradeBindingMech(vmi, iface, network, domain, podInterfaceName)
+		return newMasqueradeBindingMechPhase2(vmi, iface, network, domain, podInterfaceName)
 	}
 	if iface.Slirp != nil {
 		return &SlirpBindMechanism{vmi: vmi, iface: iface, domain: domain}, nil
 	}
 	if iface.Macvtap != nil {
-		return newMacvtapBindingMech(vmi, iface, domain, podInterfaceName)
+		return newMacvtapBindingMechPhase2(vmi, iface, domain, podInterfaceName)
 	}
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func newMacvtapBindingMech(vmi *v1.VirtualMachineInstance, iface *v1.Interface, domain *api.Domain, podInterfaceName string) (*MacvtapBindMechanism, error) {
+func newMacvtapBindingMechPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Interface, podInterfaceName string, launcherPID int) (*MacvtapBindMechanism, error) {
+	macvtapBindMech, err := newMacvtapBindingMechPhase2(vmi, iface, nil, podInterfaceName)
+	if err != nil {
+		return nil, err
+	}
+	macvtapBindMech.launcherPID = launcherPID
+	return macvtapBindMech, nil
+}
+
+func newMacvtapBindingMechPhase2(vmi *v1.VirtualMachineInstance, iface *v1.Interface, domain *api.Domain, podInterfaceName string) (*MacvtapBindMechanism, error) {
 	mac, err := retrieveMacAddress(iface)
 	if err != nil {
 		return nil, err
@@ -337,7 +354,16 @@ func newMacvtapBindingMech(vmi *v1.VirtualMachineInstance, iface *v1.Interface, 
 	}, nil
 }
 
-func newMasqueradeBindingMech(vmi *v1.VirtualMachineInstance, iface *v1.Interface, network *v1.Network, domain *api.Domain, podInterfaceName string) (*MasqueradeBindMechanism, error) {
+func newMasqueradeBindingMechPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Interface, network *v1.Network, podInterfaceName string, launcherPID int) (*MasqueradeBindMechanism, error) {
+	masqueradeBindMech, err := newMasqueradeBindingMechPhase2(vmi, iface, network, nil, podInterfaceName)
+	if err != nil {
+		return nil, err
+	}
+	masqueradeBindMech.launcherPID = launcherPID
+	return masqueradeBindMech, nil
+}
+
+func newMasqueradeBindingMechPhase2(vmi *v1.VirtualMachineInstance, iface *v1.Interface, network *v1.Network, domain *api.Domain, podInterfaceName string) (*MasqueradeBindMechanism, error) {
 	mac, err := retrieveMacAddress(iface)
 	if err != nil {
 		return nil, err
@@ -357,7 +383,16 @@ func newMasqueradeBindingMech(vmi *v1.VirtualMachineInstance, iface *v1.Interfac
 		bridgeInterfaceName: fmt.Sprintf("k6t-%s", podInterfaceName)}, nil
 }
 
-func newBridgeBindingMech(vmi *v1.VirtualMachineInstance, iface *v1.Interface, podInterfaceName string, domain *api.Domain) (*BridgeBindMechanism, error) {
+func newBridgeBindingMechPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Interface, podInterfaceName string, launcherPID int) (*BridgeBindMechanism, error) {
+	bridgeBindMech, err := newBridgeBindingMechPhase2(vmi, iface, podInterfaceName, nil)
+	if err != nil {
+		return nil, err
+	}
+	bridgeBindMech.launcherPID = launcherPID
+	return bridgeBindMech, nil
+}
+
+func newBridgeBindingMechPhase2(vmi *v1.VirtualMachineInstance, iface *v1.Interface, podInterfaceName string, domain *api.Domain) (*BridgeBindMechanism, error) {
 	mac, err := retrieveMacAddress(iface)
 	if err != nil {
 		return nil, err
