@@ -48,7 +48,7 @@ var bridgeFakeIP = "169.254.75.1%d/32"
 
 type BindMechanism interface {
 	discoverPodNetworkInterface() error
-	preparePodNetworkInterfaces(queueNumber uint32, launcherPID int) error
+	preparePodNetworkInterfaces() error
 
 	loadCachedInterface(pid, name string) (bool, error)
 	setCachedInterface(pid, name string) error
@@ -195,12 +195,7 @@ func (l *podNICImpl) PlugPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Interf
 			return err
 		}
 
-		queueNumber := uint32(0)
-		isMultiqueue := (vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue != nil) && (*vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue)
-		if isMultiqueue {
-			queueNumber = converter.CalculateNetworkQueues(vmi)
-		}
-		if err := bindMechanism.preparePodNetworkInterfaces(queueNumber, pid); err != nil {
+		if err := bindMechanism.preparePodNetworkInterfaces(); err != nil {
 			log.Log.Reason(err).Error("failed to prepare pod networking")
 			return createCriticalNetworkError(err)
 		}
@@ -359,6 +354,12 @@ func newMasqueradeBindingMechPhase1(vmi *v1.VirtualMachineInstance, iface *v1.In
 	if err != nil {
 		return nil, err
 	}
+
+	isMultiqueue := (vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue != nil) && (*vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue)
+	if isMultiqueue {
+		masqueradeBindMech.queueNumber = converter.CalculateNetworkQueues(vmi)
+	}
+
 	masqueradeBindMech.launcherPID = launcherPID
 	return masqueradeBindMech, nil
 }
@@ -388,6 +389,12 @@ func newBridgeBindingMechPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Interf
 	if err != nil {
 		return nil, err
 	}
+
+	isMultiqueue := (vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue != nil) && (*vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue)
+	if isMultiqueue {
+		bridgeBindMech.queueNumber = converter.CalculateNetworkQueues(vmi)
+	}
+
 	bridgeBindMech.launcherPID = launcherPID
 	return bridgeBindMech, nil
 }
@@ -497,7 +504,7 @@ func (b *BridgeBindMechanism) startDHCP(vmi *v1.VirtualMachineInstance) error {
 	return nil
 }
 
-func (b *BridgeBindMechanism) preparePodNetworkInterfaces(queueNumber uint32, launcherPID int) error {
+func (b *BridgeBindMechanism) preparePodNetworkInterfaces() error {
 	// Set interface link to down to change its MAC address
 	if err := Handler.LinkSetDown(b.podNicLink); err != nil {
 		log.Log.Reason(err).Errorf("failed to bring link down for interface: %s", b.podInterfaceName)
@@ -529,7 +536,7 @@ func (b *BridgeBindMechanism) preparePodNetworkInterfaces(queueNumber uint32, la
 		return err
 	}
 
-	err := createAndBindTapToBridge(tapDeviceName, b.bridgeInterfaceName, queueNumber, launcherPID, int(b.vif.Mtu))
+	err := createAndBindTapToBridge(tapDeviceName, b.bridgeInterfaceName, b.queueNumber, b.launcherPID, int(b.vif.Mtu))
 	if err != nil {
 		log.Log.Reason(err).Errorf("failed to create tap device named %s", tapDeviceName)
 		return err
@@ -834,7 +841,7 @@ func (b *MasqueradeBindMechanism) startDHCP(vmi *v1.VirtualMachineInstance) erro
 	return Handler.StartDHCP(b.vif, b.vif.Gateway, b.bridgeInterfaceName, b.iface.DHCPOptions, false)
 }
 
-func (b *MasqueradeBindMechanism) preparePodNetworkInterfaces(queueNumber uint32, launcherPID int) error {
+func (b *MasqueradeBindMechanism) preparePodNetworkInterfaces() error {
 	// Create an master bridge interface
 	bridgeNicName := fmt.Sprintf("%s-nic", b.bridgeInterfaceName)
 	bridgeNic := &netlink.Dummy{
@@ -860,7 +867,7 @@ func (b *MasqueradeBindMechanism) preparePodNetworkInterfaces(queueNumber uint32
 	}
 
 	tapDeviceName := generateTapDeviceName(b.podInterfaceName)
-	err = createAndBindTapToBridge(tapDeviceName, b.bridgeInterfaceName, queueNumber, launcherPID, int(b.vif.Mtu))
+	err = createAndBindTapToBridge(tapDeviceName, b.bridgeInterfaceName, b.queueNumber, b.launcherPID, int(b.vif.Mtu))
 	if err != nil {
 		log.Log.Reason(err).Errorf("failed to create tap device named %s", tapDeviceName)
 		return err
@@ -1216,7 +1223,7 @@ func (s *SlirpBindMechanism) discoverPodNetworkInterface() error {
 	return nil
 }
 
-func (s *SlirpBindMechanism) preparePodNetworkInterfaces(queueNumber uint32, launcherPID int) error {
+func (s *SlirpBindMechanism) preparePodNetworkInterfaces() error {
 	return nil
 }
 
@@ -1306,7 +1313,7 @@ func (b *MacvtapBindMechanism) getIfaceMACAddr() string {
 	}
 }
 
-func (b *MacvtapBindMechanism) preparePodNetworkInterfaces(queueNumber uint32, launcherPID int) error {
+func (b *MacvtapBindMechanism) preparePodNetworkInterfaces() error {
 	return nil
 }
 
