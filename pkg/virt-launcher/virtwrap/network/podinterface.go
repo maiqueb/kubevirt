@@ -50,6 +50,7 @@ type BindMechanism interface {
 	discoverPodNetworkInterface() error
 	preparePodNetworkInterfaces() error
 
+	hasCachedInterface() bool
 	loadCachedInterface(pid string) (bool, error)
 	setCachedInterface(pid string) error
 
@@ -607,6 +608,10 @@ func (b *BridgeBindMechanism) setCachedInterface(pid string) error {
 	return writeToVirtLauncherCachedFile(b.virtIface, pid, b.iface.Name)
 }
 
+func (b *BridgeBindMechanism) hasCachedInterface() bool {
+	return b.virtIface != nil
+}
+
 func (b *BridgeBindMechanism) loadCachedVIF(pid string) error {
 	buf, err := ioutil.ReadFile(getVifFilePath(pid, b.iface.Name))
 	if err != nil {
@@ -935,6 +940,10 @@ func (b *MasqueradeBindMechanism) loadCachedInterface(pid string) (bool, error) 
 
 func (b *MasqueradeBindMechanism) setCachedInterface(pid string) error {
 	return writeToVirtLauncherCachedFile(b.virtIface, pid, b.iface.Name)
+}
+
+func (b *MasqueradeBindMechanism) hasCachedInterface() bool {
+	return b.virtIface != nil
 }
 
 func (b *MasqueradeBindMechanism) loadCachedVIF(pid string) error {
@@ -1270,6 +1279,10 @@ func (s *SlirpBindMechanism) setCachedInterface(pid string) error {
 	return nil
 }
 
+func (b *SlirpBindMechanism) hasCachedInterface() bool {
+	return true
+}
+
 type MacvtapBindMechanism struct {
 	vmi              *v1.VirtualMachineInstance
 	iface            *v1.Interface
@@ -1339,6 +1352,10 @@ func (b *MacvtapBindMechanism) loadCachedInterface(pid string) (bool, error) {
 
 	b.virtIface = &ifaceConfig
 	return true, nil
+}
+
+func (b *MacvtapBindMechanism) hasCachedInterface() bool {
+	return b.virtIface != nil
 }
 
 func (b *MacvtapBindMechanism) setCachedInterface(pid string) error {
