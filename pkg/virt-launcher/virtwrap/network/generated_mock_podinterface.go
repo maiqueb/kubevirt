@@ -60,11 +60,10 @@ func (_mr *_MockBindMechanismRecorder) hasCachedInterface() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "hasCachedInterface")
 }
 
-func (_m *MockBindMechanism) loadCachedInterface(pid string) (bool, error) {
+func (_m *MockBindMechanism) loadCachedInterface(pid string) error {
 	ret := _m.ctrl.Call(_m, "loadCachedInterface", pid)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 func (_mr *_MockBindMechanismRecorder) loadCachedInterface(arg0 interface{}) *gomock.Call {
