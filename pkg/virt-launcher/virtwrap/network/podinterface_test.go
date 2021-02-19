@@ -586,6 +586,14 @@ var _ = Describe("Pod Network", func() {
 			})
 		})
 		Context("Macvtap plug", func() {
+			BeforeEach(func() {
+				primaryPodInterface.HardwareAddr = fakeMac
+			})
+
+			AfterEach(func() {
+				primaryPodInterface.HardwareAddr = nil
+			})
+
 			It("Should pass a non-privileged macvtap interface to qemu", func() {
 				ifaceName := "macvtap0"
 				domain := NewDomainWithMacvtapInterface(ifaceName)
@@ -594,7 +602,6 @@ var _ = Describe("Pod Network", func() {
 				api.NewDefaulter(runtime.GOARCH).SetObjectDefaults_Domain(domain)
 
 				driver, err := getPhase2Binding(vmi, &vmi.Spec.Domain.Devices.Interfaces[0], &vmi.Spec.Networks[0], domain, ifaceName)
-				mockNetwork.EXPECT().GetMacDetails(ifaceName).Return(fakeMac, nil)
 				mockNetwork.EXPECT().LinkByName(ifaceName).Return(primaryPodInterface, nil)
 				Expect(err).ToNot(HaveOccurred(), "should have identified the correct binding mechanism")
 				TestRunPlug(driver)
