@@ -361,13 +361,9 @@ func newMasqueradeBindingMechPhase1(vmi *v1.VirtualMachineInstance, iface *v1.In
 }
 
 func newMasqueradeBindingMechPhase2(vmi *v1.VirtualMachineInstance, iface *v1.Interface, network *v1.Network, domain *api.Domain, podInterfaceName string) (*MasqueradeBindMechanism, error) {
-	mac, err := retrieveMacAddress(iface)
+	vif, err := newVIF(iface, podInterfaceName)
 	if err != nil {
 		return nil, err
-	}
-	vif := &VIF{Name: podInterfaceName}
-	if mac != nil {
-		vif.MAC = *mac
 	}
 	return &MasqueradeBindMechanism{iface: iface,
 		vmi:                 vmi,
@@ -395,13 +391,9 @@ func newBridgeBindingMechPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Interf
 }
 
 func newBridgeBindingMechPhase2(vmi *v1.VirtualMachineInstance, iface *v1.Interface, podInterfaceName string, domain *api.Domain) (*BridgeBindMechanism, error) {
-	mac, err := retrieveMacAddress(iface)
+	vif, err := newVIF(iface, podInterfaceName)
 	if err != nil {
 		return nil, err
-	}
-	vif := &VIF{Name: podInterfaceName}
-	if mac != nil {
-		vif.MAC = *mac
 	}
 	return &BridgeBindMechanism{iface: iface,
 		vmi:                 vmi,

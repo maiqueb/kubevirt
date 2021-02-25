@@ -70,6 +70,18 @@ type CriticalNetworkError struct {
 
 func (e *CriticalNetworkError) Error() string { return e.Msg }
 
+func newVIF(iface *v1.Interface, podInterfaceName string) (*VIF, error) {
+	mac, err := retrieveMacAddress(iface)
+	if err != nil {
+		return nil, err
+	}
+	vif := &VIF{Name: podInterfaceName}
+	if mac != nil {
+		vif.MAC = *mac
+	}
+	return vif, nil
+}
+
 func (vif VIF) String() string {
 	return fmt.Sprintf(
 		"VIF: { Name: %s, IP: %s, Mask: %s, IPv6: %s, MAC: %s, Gateway: %s, MTU: %d, IPAMDisabled: %t}",
