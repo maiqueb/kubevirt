@@ -351,8 +351,7 @@ func newMasqueradeBindingMechPhase1(vmi *v1.VirtualMachineInstance, iface *v1.In
 		return nil, err
 	}
 
-	isMultiqueue := (vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue != nil) && (*vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue)
-	if isMultiqueue {
+	if isMultiqueue(vmi) {
 		masqueradeBindMech.queueNumber = converter.CalculateNetworkQueues(vmi)
 	}
 
@@ -381,8 +380,7 @@ func newBridgeBindingMechPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Interf
 		return nil, err
 	}
 
-	isMultiqueue := (vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue != nil) && (*vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue)
-	if isMultiqueue {
+	if isMultiqueue(vmi) {
 		bridgeBindMech.queueNumber = converter.CalculateNetworkQueues(vmi)
 	}
 
@@ -1382,4 +1380,9 @@ func createAndBindTapToBridge(deviceName string, bridgeIfaceName string, queueNu
 
 func generateTapDeviceName(podInterfaceName string) string {
 	return "tap" + podInterfaceName[3:]
+}
+
+func isMultiqueue(vmi *v1.VirtualMachineInstance) bool {
+	return (vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue != nil) &&
+		(*vmi.Spec.Domain.Devices.NetworkInterfaceMultiQueue)
 }
