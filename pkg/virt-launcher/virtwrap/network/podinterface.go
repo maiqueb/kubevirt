@@ -372,7 +372,7 @@ func newMasqueradeBindingMechPhase2(vmi *v1.VirtualMachineInstance, iface *v1.In
 		podInterfaceName:    podInterfaceName,
 		vmNetworkCIDR:       network.Pod.VMNetworkCIDR,
 		vmIpv6NetworkCIDR:   "", // TODO add ipv6 cidr to PodNetwork schema
-		bridgeInterfaceName: fmt.Sprintf("k6t-%s", podInterfaceName)}, nil
+		bridgeInterfaceName: generateInPodBridgeName(podInterfaceName)}, nil
 }
 
 func newBridgeBindingMechPhase1(vmi *v1.VirtualMachineInstance, iface *v1.Interface, podInterfaceName string, launcherPID int) (*BridgeBindMechanism, error) {
@@ -400,7 +400,11 @@ func newBridgeBindingMechPhase2(vmi *v1.VirtualMachineInstance, iface *v1.Interf
 		vif:                 vif,
 		domain:              domain,
 		podInterfaceName:    podInterfaceName,
-		bridgeInterfaceName: fmt.Sprintf("k6t-%s", podInterfaceName)}, nil
+		bridgeInterfaceName: generateInPodBridgeName(podInterfaceName)}, nil
+}
+
+func generateInPodBridgeName(podInterfaceName string) string {
+	return fmt.Sprintf("k6t-%s", podInterfaceName)
 }
 
 func setCachedVIF(vif VIF, launcherPID string, ifaceName string) error {
